@@ -34,8 +34,8 @@ struct socket_server_t
     int             socket_server_status;//socket server状态:0 停止，1 运行
 };
 
-void *send_thread(void *arg);
-void *recv_thread(void *arg);
+void send_thread(void *arg);
+void recv_thread(void *arg);
 
 socket_server_p socket_server_create(int port,SOCKET_MODE mode)
 {
@@ -63,6 +63,12 @@ socket_server_p socket_server_create(int port,SOCKET_MODE mode)
     server->socket_server_addr.sin_port = htons(port);
     server->socket_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
+    int optval = 1;
+    if(setsockopt(server->socket_server_fd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval)) < 0)
+    {
+        printf("setsockopt failed...\n");
+        return NULL;
+    }
     if(bind(server->socket_server_fd,(struct sockaddr*)&server->socket_server_addr,sizeof(server->socket_server_addr)) == -1)
     {
         printf("socket_server:bind failed...\n");
@@ -144,7 +150,7 @@ void socket_server_start(socket_server_p server)
         server->clients[i].isConn = 1;
         server->clients[i].index = i;
         pthread_mutex_unlock(&(server->clients_mutex[i]));
-        if(pthread_create(&(server->clients_thread_id[i]),NULL,recv_thread,&server->clients[i]) != 0)
+        if(pthread_create(&(server->clients_thread_id[i]),NULL,(void *)recv_thread,&server->clients[i]) != 0)
         {
             printf("create thread failed...\n");
         }
@@ -152,16 +158,16 @@ void socket_server_start(socket_server_p server)
 
 }
 
-void *send_thread(void *arg)
+void send_thread(void *arg)
 {
-    
+
 }
-void *recv_thread(void *arg)
+void recv_thread(void *arg)
 {
     printf("-------1\n");
     if(arg == NULL)
     {
-        return NULL;
+        return;
     }
     ClientInfo *client = (ClientInfo *)arg;
 
@@ -170,20 +176,22 @@ void *recv_thread(void *arg)
     printf("------- isConn = %d\n",client->isConn);
     while(client->isConn)
     {
+        printf("\n等待接收数据:\n");
+        fflush(NULL);
         flag = recv(client->clientfd,buf,sizeof(buf),0);
         if(flag == 0)
         {
             printf("对方已关闭连接\n");
-            return NULL;
+            return;
         }
         else if(flag == -1)
         {
             printf("client index = %d recv message failed...\n",client->index);
         }
-        printf("from:%s:%s",inet_ntoa(client->addr.sin_addr),buf);
+        printf("from:%s:%s\n",inet_ntoa(client->addr.sin_addr),buf);
         memset(buf,0,sizeof(buf));
     }
-    return NULL;
+    return;
 }
 //
 // void socket_set_message_callback(char *msg)
