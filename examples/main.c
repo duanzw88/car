@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <wiringPi.h>
 #include "socket_server.h"
 #include "car.h"
 
