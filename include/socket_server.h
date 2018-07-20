@@ -3,6 +3,9 @@
 
 typedef struct socket_server_t *socket_server_p;
 
+//消息回调函数
+typedef void (*callback)(char *msg);
+
 //socket模式 tcp udp
 typedef enum
 {
@@ -19,7 +22,7 @@ typedef enum
 
 socket_server_p socket_server_create(int port,SOCKET_MODE mode);
 void            socket_server_start(socket_server_p server);
-
+void            socket_server_set_msgcallback(socket_server_p server,callback msgcallback);
 // void socket_set_message_callback(char *msg);
 // int socket_send_message(int socketfd,char *msg);
 

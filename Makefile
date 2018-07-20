@@ -5,7 +5,7 @@ INCLUDE_DIR = include
 CC=gcc
 
 OBJ_DIR=./objs
-objects = socket_server.o
+objects = socket_server.o car.o
 OBJS = $(addprefix $(OBJ_DIR)/,$(objects))
 
 LIB_DIR = ./libs

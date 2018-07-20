@@ -12,8 +12,10 @@
 
 #define MAX_CONN 10
 
+
 typedef struct ClientInfo
 {
+    socket_server_p server;
     struct sockaddr_in addr;
     int clientfd;
     int isConn;
@@ -32,6 +34,8 @@ struct socket_server_t
     pthread_mutex_t activeConnMutex;
     pthread_cond_t  connDis;//断开socket连接
     int             socket_server_status;//socket server状态:0 停止，1 运行
+    //消息回调函数
+    callback        msg_callback;
 };
 
 void send_thread(void *arg);
@@ -89,6 +93,7 @@ socket_server_p socket_server_create(int port,SOCKET_MODE mode)
     {
         server->clients[i].isConn = 0;
     }
+    server->msg_callback = NULL;
     return server;
 }
 void socket_server_start(socket_server_p server)
@@ -146,6 +151,8 @@ void socket_server_start(socket_server_p server)
         printf("newConnection:%d\n",i);
         //执行到此说明新的连接创建成功
         pthread_mutex_lock(&server->clients_mutex[i]);
+        server->clients[i].server = server;
+        server->clients[i].addr = socket_client_addr;
         server->clients[i].clientfd = socket_client_fd;
         server->clients[i].isConn = 1;
         server->clients[i].index = i;
@@ -157,7 +164,10 @@ void socket_server_start(socket_server_p server)
     }
 
 }
-
+void socket_server_set_msgcallback(socket_server_p server,callback msgcallback)
+{
+    server->msg_callback = msgcallback;
+}
 void send_thread(void *arg)
 {
 
@@ -170,25 +180,35 @@ void recv_thread(void *arg)
         return;
     }
     ClientInfo *client = (ClientInfo *)arg;
+    socket_server_p server = client->server;
 
     int flag = 0;
     char buf[1024] = {0};
-    printf("------- isConn = %d\n",client->isConn);
     while(client->isConn)
     {
-        printf("\n等待接收数据:\n");
         fflush(NULL);
         flag = recv(client->clientfd,buf,sizeof(buf),0);
         if(flag == 0)
         {
-            printf("对方已关闭连接\n");
+            if(server->msg_callback != NULL)
+            {
+                server->msg_callback("conn close");
+            }
             return;
         }
-        else if(flag == -1)
+        // else if(flag == -1)
+        // {
+        //   if(server->msg_callback != NULL)
+        //   {
+        //       server->msg_callback("conn close");
+        //   }
+        //     printf("client index = %d recv message failed...\n",client->index);
+        // }
+        if(server->msg_callback != NULL)
         {
-            printf("client index = %d recv message failed...\n",client->index);
+            server->msg_callback(buf);
         }
-        printf("from:%s:%s\n",inet_ntoa(client->addr.sin_addr),buf);
+        // printf("from:%s:%d:%s\n",inet_ntoa(client->addr.sin_addr),ntohs(client->addr.sin_port),buf);
         memset(buf,0,sizeof(buf));
     }
     return;
